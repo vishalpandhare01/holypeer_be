@@ -2,6 +2,7 @@ package validation
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vishalpandhare01/holypeer_backend/initializer"
 	"github.com/vishalpandhare01/holypeer_backend/internal/model"
@@ -23,4 +24,10 @@ func CheckEmailExist(email string) bool {
 		return false
 	}
 	return true
+}
+
+func ValidDateOfBirth(date string) bool {
+	layout := "2006-01-02"
+	_, err := time.Parse(layout, date)
+	return err == nil
 }

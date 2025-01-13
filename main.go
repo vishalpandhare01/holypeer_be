@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/websocket/v2"
 	"github.com/joho/godotenv"
 	"github.com/vishalpandhare01/holypeer_backend/initializer"
@@ -26,7 +27,13 @@ func main() {
 		log.Fatal("Env not loaded: ", err)
 	}
 	Init()
-	// WebSocket middleware for upgrading the connection
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins:     "http://localhost:3000/, http://localhost:3001/, http://localhost:3002/",
+		AllowCredentials: true,
+		// Enable Debugging for testing, consider disabling in production
+	}))
+
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)
@@ -37,6 +44,5 @@ func main() {
 
 	internal.SetUpRouts(app)
 
-	// Start the server
 	log.Fatal(app.Listen(":8000"))
 }

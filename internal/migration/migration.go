@@ -11,6 +11,9 @@ import (
 func DbMigration() {
 	err := initializer.Db.AutoMigrate(
 		&model.User{},
+		&model.User_Otp{},
+		&model.MemeberSchema{},
+		&model.ListenerSchema{},
 	)
 
 	if err != nil {

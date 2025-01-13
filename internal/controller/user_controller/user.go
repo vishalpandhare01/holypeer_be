@@ -15,8 +15,15 @@ func Server(C *fiber.Ctx) error {
 	})
 }
 
+type UserBody struct {
+	Name        string
+	Email       string
+	DateOfBirth string
+	IsListner   bool
+}
+
 func RegisterUser(C *fiber.Ctx) error {
-	var body model.User
+	var body UserBody
 
 	if err := C.BodyParser(&body); err != nil {
 		return C.Status(400).JSON(fiber.Map{
@@ -42,6 +49,12 @@ func RegisterUser(C *fiber.Ctx) error {
 		})
 	}
 
+	if !validation.ValidDateOfBirth(body.DateOfBirth) {
+		return C.Status(400).JSON(fiber.Map{
+			"message": "YYYY-MM-DD formate is required",
+		})
+	}
+
 	if validation.CheckNameExist(body.Name) {
 		return C.Status(400).JSON(fiber.Map{
 			"message": "Use Another New Name",
@@ -50,11 +63,18 @@ func RegisterUser(C *fiber.Ctx) error {
 
 	if validation.CheckEmailExist(body.Email) {
 		return C.Status(400).JSON(fiber.Map{
-			"message": "Use Another New Email",
+			"message": "You already have acount with this email",
 		})
 	}
 
-	if err := initializer.Db.Create(&body).Error; err != nil {
+	var data = model.User{
+		Name:        body.Name,
+		Email:       body.Email,
+		DateOfBirth: body.DateOfBirth,
+		IsListner:   body.IsListner,
+	}
+
+	if err := initializer.Db.Create(&data).Error; err != nil {
 		return C.Status(500).JSON(fiber.Map{
 			"message": err.Error(),
 		})
@@ -62,7 +82,7 @@ func RegisterUser(C *fiber.Ctx) error {
 
 	return C.Status(201).JSON(fiber.Map{
 		"message": "success",
-		"data":    body,
+		"data":    data,
 	})
 
 }
@@ -83,18 +103,17 @@ func SendOtp(C *fiber.Ctx) error {
 
 	var user model.User
 
-	if err := initializer.Db.Where("email = ?", body.Email).First(&user); err != nil {
-		// if err == "record not found" {
-		// 	return C.Status(404).JSON(fiber.Map{
-		// 		"message": err.Error,
-		// 	})
-		// }
+	if err := initializer.Db.Where("email = ?", body.Email).First(&user).Error; err != nil {
+		if err.Error() == "record not found" {
+			return C.Status(404).JSON(fiber.Map{
+				"message": "Email: " + err.Error(),
+			})
+		}
 		return C.Status(500).JSON(fiber.Map{
-			"message": err.Error,
+			"message": "Email: " + err.Error(),
 		})
 	}
 
-	//generate otp
 	code := utils.Otp_Number_Generate()
 	//Todo :- sent otp to email not in response
 	var userOtp model.User_Otp
@@ -146,6 +165,12 @@ func VeryfyOtp(C *fiber.Ctx) error {
 	var body VeryfyOtpBody
 	var user model.User
 
+	if err := C.BodyParser(&body); err != nil {
+		return C.Status(400).JSON(fiber.Map{
+			"message": err.Error(),
+		})
+	}
+
 	if err := initializer.Db.Where("email = ?", body.Email).First(&user).Error; err != nil {
 		if err.Error() == "record not found" {
 			return C.Status(404).JSON(fiber.Map{
@@ -158,10 +183,10 @@ func VeryfyOtp(C *fiber.Ctx) error {
 	}
 
 	var userOtp model.User_Otp
-	if err := initializer.Db.Where("user_id = ?", user.ID).First(&userOtp).Error; err != nil {
+	if err := initializer.Db.Where("user_id = ? and otp_code = ?", user.ID, body.Otp).First(&userOtp).Error; err != nil {
 		if err.Error() == "record not found" {
 			return C.Status(404).JSON(fiber.Map{
-				"message": "User:" + err.Error(),
+				"message": "Invalid Otp",
 			})
 		}
 		return C.Status(500).JSON(fiber.Map{
@@ -175,7 +200,7 @@ func VeryfyOtp(C *fiber.Ctx) error {
 		})
 	}
 
-	if userOtp.OtpCode == body.Otp {
+	if !userOtp.IsUsed {
 		userOtp.IsUsed = true
 		userOtp.Attempt = 0
 		user.IsEmailVerified = true
