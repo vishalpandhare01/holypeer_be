@@ -1,6 +1,7 @@
 package websocketcontroller
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
@@ -16,12 +17,32 @@ var (
 // WebSocket endpoint that accepts `id` as a parameter
 
 func SocketConnection(c *websocket.Conn) {
+	fmt.Println("start socket")
 	// Get the `id` parameter from the URL
-	id := c.Params("id")
+	ChatKey, ok := c.Locals("ChatKey").(string)
+	if !ok {
+		// Handle the error if the type assertion fails
+		fmt.Println("userId is not a string")
+	}
+
+	id := ChatKey
+
 	log.Printf("New connection with ID: %s", id)
 
-	// Add the WebSocket connection to the `rooms` map for the given `id`
 	mu.Lock()
+	// Check if the room already has 2 users
+	if len(rooms[id]) >= 2 {
+		// Reject the connection if the room is full
+		mu.Unlock()
+		err := c.WriteMessage(websocket.TextMessage, []byte("Room is full. Only 2 users allowed."))
+		if err != nil {
+			log.Println("Error sending rejection message:", err)
+		}
+		c.Close()
+		return
+	}
+
+	// Add the WebSocket connection to the `rooms` map for the given `id`
 	rooms[id] = append(rooms[id], c)
 	mu.Unlock()
 

@@ -227,8 +227,13 @@ func VeryfyOtp(C *fiber.Ctx) error {
 		})
 	}
 
+	if userType == "listner" {
+		userType = "listener"
+	}
+
 	return C.Status(200).JSON(fiber.Map{
 		"message": "User Veryfied successfully",
 		"token":   token,
+		"data":    userType,
 	})
 }

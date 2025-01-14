@@ -14,6 +14,7 @@ func DbMigration() {
 		&model.User_Otp{},
 		&model.MemeberSchema{},
 		&model.ListenerSchema{},
+		&model.Chat{},
 	)
 
 	if err != nil {
